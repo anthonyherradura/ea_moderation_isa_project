@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Chat Moderation Prototype</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1 id="title"></h1>
+    <div id="session" hidden>
+      <span id="who"></span>
+      <span id="usage"></span>
+      <button id="logout"></button>
+    </div>
+  </header>
+
+  <p id="status" role="status"></p>
+
+  <main>
+    <section id="auth">
+      <h2 id="authTitle"></h2>
+      <form id="authForm">
+        <label><span id="emailLabel"></span><input id="email" type="email" required autocomplete="username"></label>
+        <label><span id="passwordLabel"></span><input id="password" type="password" required minlength="8" autocomplete="current-password"></label>
+        <div class="row">
+          <button id="login" type="submit"></button>
+          <button id="register" type="button" class="secondary"></button>
+        </div>
+      </form>
+      <p id="privacy" class="muted"></p>
+    </section>
+
+    <div id="app" hidden>
+      <section>
+        <h2 id="chatTitle"></h2>
+        <form id="chatForm" class="row">
+          <input id="chatText" maxlength="500" required>
+          <button id="chatSend" type="submit"></button>
+        </form>
+        <ul id="chatLog" class="log"></ul>
+      </section>
+
+      <section>
+        <h2 id="nameTitle"></h2>
+        <form id="nameForm" class="row">
+          <input id="nameText" minlength="3" maxlength="20" required>
+          <button id="nameSend" type="submit"></button>
+        </form>
+        <p id="nameResult"></p>
+      </section>
+
+      <section>
+        <div class="row spread">
+          <h2 id="reviewTitle"></h2>
+          <button id="reviewRefresh" class="secondary"></button>
+        </div>
+        <div id="reviews"></div>
+      </section>
+
+      <section id="admin" hidden>
+        <div class="row spread">
+          <h2 id="adminTitle"></h2>
+          <button id="adminRefresh" class="secondary"></button>
+        </div>
+        <div class="tables">
+          <table id="endpointTable"></table>
+          <table id="userTable"></table>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script src="messages.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
