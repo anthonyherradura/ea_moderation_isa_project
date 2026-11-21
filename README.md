@@ -4,15 +4,19 @@ COMP 4537 term project, team prjM3. A REST API that scores chat messages and
 usernames for toxicity, masks clear violations, and sends unclear cases to a
 human review queue. **The AI suggests; a moderator decides.**
 
-## Run it
+## Run it locally
 
-Needs Node 22.13+ (uses the built-in `node:sqlite`).
+Needs Node 22+ and a MySQL 8 server. The quickest MySQL is Docker:
+
+```bash
+docker run -d --name moderation-mysql -p 3306:3306 -e MYSQL_ROOT_PASSWORD=root -e MYSQL_DATABASE=moderation mysql:8
+```
+
+(or point `DATABASE_URL` at any MySQL you have, e.g. the Railway one's public URL).
+The tables and test accounts are created on first start.
 
 ```bash
 npm install
-```
-
-```bash
 npm run dev
 ```
 
@@ -28,13 +32,10 @@ Register a player account in the client, or log in with the test admin /
 moderator accounts listed in [.env.example](.env.example). To change settings,
 copy `.env.example` to `.env`.
 
-Try `gg well played` (allowed), `you are an idiot` (review queue) and `kys`
-(masked) in the chat tester.
-
 ### Using the real model
 
 The mock is only a keyword matcher. The real service runs `unitary/toxic-bert`
-(about 440 MB download, plus PyTorch):
+(about 440 MB download, plus CPU PyTorch; about 800 MB of RAM, ~30 ms per message):
 
 ```bash
 cd inference
@@ -67,24 +68,78 @@ the review queue with a warning (5 s timeout, one retry, circuit breaker).
 | DELETE | `/reviews/:id` | Owner or admin |
 | GET | `/admin/stats` | Admin: requests per endpoint, calls per user |
 
-Thresholds (`REVIEW_THRESHOLD`, `MASK_THRESHOLD`) are applied by the API to the
-highest of the six label scores: below review = allowed, between = review
-queue, at or above mask = masked (and still appealable).
+## How a decision is made
+
+[api/decide.js](api/decide.js) turns the model's six scores into a decision.
+The thresholds belong to the API, not the model:
+
+- **masked** if a serious label is high: threat ≥ 0.7, severe_toxic ≥ 0.5,
+  identity_hate ≥ 0.5 or obscene ≥ 0.9, or the message is a known abbreviation
+  the model misses (`kys`, also spelled `k y s`). Masked cases can be appealed.
+- **review** (human moderator) if the highest score is ≥ `REVIEW_THRESHOLD` (0.5).
+- **allowed** otherwise.
+
+toxic-bert's general `toxic` label is high for any rudeness ("shut up" scores
+0.95), so on its own it only sends a message to review.
+
+## Evaluation
+
+[eval/](eval/) scores the CONDA validation set (Dota 2 in-game chat, Weld et
+al., ACL 2021, https://github.com/usydnlp/CONDA) with the real model and
+compares threshold rules. The data is downloaded on first run and not
+committed (the dataset has no licence file).
+
+```bash
+node eval/score-conda.mjs http://localhost:8000   # ~5 min, caches eval/data/scores.json
+node eval/evaluate.mjs
+```
+
+## Deploy (Railway)
+
+One Railway project, four services, all from this repo:
+
+| Service | Settings | Variables |
+| --- | --- | --- |
+| **MySQL** | New → Database → MySQL | (provided) |
+| **inference** | Root directory `inference` (uses its Dockerfile). No public domain. | `PORT=8000` |
+| **api** | Root `/`, start `npm start`, public domain, healthcheck `/health` | see below |
+| **client** | Root `/`, start `npm run start:client`, public domain | `API_URL=https://<api domain>/api/v1` |
+
+api variables:
+
+```
+NODE_ENV=production
+TRUST_PROXY=1
+JWT_SECRET=${{secret(64)}}
+DATABASE_URL=${{MySQL.MYSQL_URL}}
+INFERENCE_URL=http://${{inference.RAILWAY_PRIVATE_DOMAIN}}:8000
+CLIENT_ORIGINS=https://<client domain>
+SEED_ADMIN_EMAIL=...       SEED_ADMIN_PASSWORD=...
+SEED_MODERATOR_EMAIL=...   SEED_MODERATOR_PASSWORD=...
+```
+
+In production the API reads nothing from `.env` / `.env.example`, so a missing
+variable fails at start-up instead of silently using a test value. The cookie
+is `SameSite=None; Secure` because the client and API are on different sites;
+browsers that block third-party cookies (Safari, Firefox strict mode) need the
+client and API on subdomains of one custom domain.
+
+The inference image downloads the model at build time and runs with Hugging
+Face offline mode, so the running service depends only on the files on its disk.
 
 ## Layout
 
 - `api/` – Express server: `auth.js`, `moderation.js` (scoring + review CRUD),
-  `inference.js` (adapter), `db.js` (schema), `messages.js` (user-facing strings)
-- `inference/` – `app.py` (FastAPI + toxic-bert) and `mock.js`
-- `client/` – static client and its tiny dev server
+  `decide.js` (thresholds), `inference.js` (adapter), `db.js` (MySQL schema
+  and query helpers), `messages.js` (user-facing strings)
+- `inference/` – `app.py` (FastAPI + toxic-bert), `Dockerfile`, and `mock.js`
+- `client/` – static client and its tiny server (`/config.js` comes from `API_URL`)
+- `eval/` – dataset evaluation scripts
 
-## Not in the prototype yet
+## Not done yet
 
-- MySQL: storage is SQLite for zero setup; the schema and parameterized
-  queries are written to port over.
 - Swagger docs at `/doc/` (Milestone 2).
-- Deployment config for Railway. In production the cookie switches to
-  `SameSite=None; Secure` when `NODE_ENV=production`.
 - Retention limit on stored review-case text.
+- A full decision history: a case keeps only its latest decision.
 
 toxic-bert is Apache-2.0 (https://huggingface.co/unitary/toxic-bert).

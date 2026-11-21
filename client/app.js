@@ -1,6 +1,6 @@
 // Plain JS client. Every piece of server or user text is rendered with
 // textContent (never innerHTML), so stored chat text cannot inject markup.
-const API = 'http://localhost:3000/api/v1';
+// API comes from config.js, which serve.js generates from the API_URL variable.
 
 const $ = (id) => document.getElementById(id);
 let me = null;
