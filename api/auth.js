@@ -3,7 +3,7 @@ import { body, validationResult } from 'express-validator';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { config } from './config.js';
-import { db } from './db.js';
+import { one, run } from './db.js';
 import { MSG } from './messages.js';
 
 const COOKIE = 'token';
@@ -25,13 +25,14 @@ export function validate(req, res, next) {
 
 /** Requires a valid JWT cookie. The role is read from the database on every
  *  request, never from the token or the client. */
-export function requireAuth(req, res, next) {
+export async function requireAuth(req, res, next) {
+  let sub;
   try {
-    const { sub } = jwt.verify(req.cookies[COOKIE] ?? '', config.jwtSecret);
-    req.user = db.prepare('SELECT id, email, role, api_calls FROM users WHERE id = ?').get(sub);
+    ({ sub } = jwt.verify(req.cookies[COOKIE] ?? '', config.jwtSecret));
   } catch {
-    // fall through with no user
+    // bad or missing token: fall through with no user
   }
+  if (sub) req.user = await one('SELECT id, email, role, api_calls FROM users WHERE id = ?', [sub]);
   if (!req.user) return res.status(401).json({ error: MSG.notLoggedIn });
   next();
 }
@@ -57,22 +58,25 @@ const credentials = [
 
 export const authRouter = Router();
 
-authRouter.post('/auth/register', credentials, (req, res) => {
+authRouter.post('/auth/register', credentials, async (req, res) => {
   const { email, password } = req.body;
-  if (db.prepare('SELECT id FROM users WHERE email = ?').get(email)) {
-    return res.status(409).json({ error: MSG.emailTaken });
-  }
   // Only email and password are taken from the body; role is always 'user'.
-  const { lastInsertRowid } = db
-    .prepare('INSERT INTO users (email, password_hash) VALUES (?, ?)')
-    .run(email, bcrypt.hashSync(password, 10));
-  res.status(201).json({ id: Number(lastInsertRowid), email, role: 'user' });
+  try {
+    const { insertId } = await run('INSERT INTO users (email, password_hash) VALUES (?, ?)', [
+      email,
+      await bcrypt.hash(password, 10),
+    ]);
+    res.status(201).json({ id: insertId, email, role: 'user' });
+  } catch (err) {
+    if (err.code === 'ER_DUP_ENTRY') return res.status(409).json({ error: MSG.emailTaken });
+    throw err;
+  }
 });
 
-authRouter.post('/auth/login', credentials, (req, res) => {
+authRouter.post('/auth/login', credentials, async (req, res) => {
   const { email, password } = req.body;
-  const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
-  if (!user || !bcrypt.compareSync(password, user.password_hash)) {
+  const user = await one('SELECT * FROM users WHERE email = ?', [email]);
+  if (!user || !(await bcrypt.compare(password, user.password_hash))) {
     return res.status(401).json({ error: MSG.badLogin });
   }
   const token = jwt.sign({ sub: user.id }, config.jwtSecret, { expiresIn: config.tokenTtlSeconds });

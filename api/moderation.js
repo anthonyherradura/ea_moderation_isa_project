@@ -1,7 +1,8 @@
 import { Router } from 'express';
 import { body, param } from 'express-validator';
 import { config } from './config.js';
-import { db } from './db.js';
+import { all, one, run } from './db.js';
+import { decide } from './decide.js';
 import { predict } from './inference.js';
 import { MSG } from './messages.js';
 import { requireAuth, isModerator, validate } from './auth.js';
@@ -15,7 +16,7 @@ const mask = (text) => text.replace(/\S/g, '*');
 /** Scores one piece of text and applies OUR thresholds. The model only advises:
  *  the worst it can do by itself is mask a message, and that can be overturned. */
 async function moderate(user, kind, text) {
-  db.prepare('UPDATE users SET api_calls = api_calls + 1 WHERE id = ?').run(user.id);
+  await run('UPDATE users SET api_calls = api_calls + 1 WHERE id = ?', [user.id]);
   const apiCalls = user.api_calls + 1;
 
   let scores = null;
@@ -25,8 +26,7 @@ async function moderate(user, kind, text) {
   let aiDecision;
   try {
     scores = await predict(text);
-    [topLabel, topScore] = Object.entries(scores).sort((a, b) => b[1] - a[1])[0];
-    decision = topScore >= config.maskThreshold ? 'masked' : topScore >= config.reviewThreshold ? 'review' : 'allowed';
+    ({ decision, topLabel, topScore } = decide(text, scores, config.reviewThreshold));
     aiDecision = decision;
   } catch (err) {
     // Fallback: if the model is down, a human looks at it instead of the request failing.
@@ -35,19 +35,18 @@ async function moderate(user, kind, text) {
     aiDecision = 'fallback';
   }
 
-  const { lastInsertRowid: messageId } = db
-    .prepare('INSERT INTO messages (user_id, kind, decision, top_label, top_score) VALUES (?, ?, ?, ?, ?)')
-    .run(user.id, kind, decision, topLabel, topScore);
+  const { insertId: messageId } = await run(
+    'INSERT INTO messages (user_id, kind, decision, top_label, top_score) VALUES (?, ?, ?, ?, ?)',
+    [user.id, kind, decision, topLabel, topScore]
+  );
 
   let caseId = null;
   if (decision !== 'allowed') {
-    const result = db
-      .prepare(
-        `INSERT INTO review_cases (message_id, user_id, kind, text, ai_decision, top_label, top_score)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`
-      )
-      .run(messageId, user.id, kind, text, aiDecision, topLabel, topScore);
-    caseId = Number(result.lastInsertRowid);
+    ({ insertId: caseId } = await run(
+      `INSERT INTO review_cases (message_id, user_id, kind, text, ai_decision, top_label, top_score)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [messageId, user.id, kind, text, aiDecision, topLabel, topScore]
+    ));
   }
 
   const warnings = [];
@@ -112,8 +111,8 @@ const CASE_SELECT = `
 const idParam = [param('id').isInt({ min: 1 }).toInt(), validate];
 
 /** Loads the case, and 404s if it does not exist or this user may not see it. */
-function loadCase(req, res, next) {
-  const found = db.prepare(`${CASE_SELECT} WHERE c.id = ?`).get(req.params.id);
+async function loadCase(req, res, next) {
+  const found = await one(`${CASE_SELECT} WHERE c.id = ?`, [req.params.id]);
   if (!found || (found.user_id !== req.user.id && !isModerator(req.user))) {
     return res.status(404).json({ error: MSG.notFound });
   }
@@ -121,10 +120,10 @@ function loadCase(req, res, next) {
   next();
 }
 
-moderationRouter.get('/reviews', (req, res) => {
+moderationRouter.get('/reviews', async (req, res) => {
   const rows = isModerator(req.user)
-    ? db.prepare(`${CASE_SELECT} ORDER BY c.id DESC`).all()
-    : db.prepare(`${CASE_SELECT} WHERE c.user_id = ? ORDER BY c.id DESC`).all(req.user.id);
+    ? await all(`${CASE_SELECT} ORDER BY c.id DESC`)
+    : await all(`${CASE_SELECT} WHERE c.user_id = ? ORDER BY c.id DESC`, [req.user.id]);
   res.json(rows.map(caseJson));
 });
 
@@ -138,33 +137,34 @@ moderationRouter.patch(
   body('appealNote').optional().isString().trim().isLength({ min: 1, max: 500 }),
   validate,
   loadCase,
-  (req, res) => {
+  async (req, res) => {
     // Only these three fields are ever read from the body.
     const { decision, note, appealNote } = req.body;
     const current = req.reviewCase;
 
     if (decision) {
       if (!isModerator(req.user)) return res.status(403).json({ error: MSG.forbidden });
-      db.prepare(
+      await run(
         `UPDATE review_cases
          SET status = ?, decision_note = ?, decided_by = ?, decided_at = CURRENT_TIMESTAMP
-         WHERE id = ?`
-      ).run(decision === 'uphold' ? 'upheld' : 'overturned', note ?? null, req.user.id, current.id);
+         WHERE id = ?`,
+        [decision === 'uphold' ? 'upheld' : 'overturned', note ?? null, req.user.id, current.id]
+      );
     } else if (appealNote) {
       if (current.user_id !== req.user.id) return res.status(403).json({ error: MSG.forbidden });
       if (current.status === 'overturned') return res.status(409).json({ error: MSG.alreadyDecided });
       // An appeal puts the case back in front of a moderator.
-      db.prepare(`UPDATE review_cases SET appeal_note = ?, status = 'pending' WHERE id = ?`).run(appealNote, current.id);
+      await run(`UPDATE review_cases SET appeal_note = ?, status = 'pending' WHERE id = ?`, [appealNote, current.id]);
     } else {
       return res.status(400).json({ error: MSG.nothingToUpdate });
     }
-    res.json(caseJson(db.prepare(`${CASE_SELECT} WHERE c.id = ?`).get(current.id)));
+    res.json(caseJson(await one(`${CASE_SELECT} WHERE c.id = ?`, [current.id])));
   }
 );
 
-moderationRouter.delete('/reviews/:id', idParam, loadCase, (req, res) => {
+moderationRouter.delete('/reviews/:id', idParam, loadCase, async (req, res) => {
   const isOwner = req.reviewCase.user_id === req.user.id;
   if (!isOwner && req.user.role !== 'admin') return res.status(403).json({ error: MSG.forbidden });
-  db.prepare('DELETE FROM review_cases WHERE id = ?').run(req.reviewCase.id);
+  await run('DELETE FROM review_cases WHERE id = ?', [req.reviewCase.id]);
   res.json({ message: MSG.deleted });
 });

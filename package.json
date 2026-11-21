@@ -5,10 +5,12 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "start": "node api/index.js",
     "dev": "node scripts/dev.js",
     "api": "node api/index.js",
     "mock": "node inference/mock.js",
-    "client": "node client/serve.js"
+    "client": "node client/serve.js",
+    "start:client": "node client/serve.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.2",
@@ -18,6 +20,10 @@
     "express-rate-limit": "^8.0.0",
     "express-validator": "^7.2.1",
     "helmet": "^8.1.0",
-    "jsonwebtoken": "^9.0.2"
+    "jsonwebtoken": "^9.0.2",
+    "mysql2": "^3.24.6"
+  },
+  "engines": {
+    "node": ">=22"
   }
 }
