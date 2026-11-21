@@ -19,8 +19,10 @@ app.use(cookieParser());
 // Count requests per endpoint for the admin dashboard.
 app.use('/api/v1', (req, res, next) => {
   res.on('finish', () => {
-    if (res.statusCode === 404 && !req.route) return; // unknown paths are not endpoints
-    const endpoint = req.originalUrl.split('?')[0].replace(/\/\d+(?=\/|$)/g, '/:id');
+    // Count by the matched route pattern (e.g. /reviews/:id), never the raw URL,
+    // so made-up paths cannot add rows to this table.
+    if (!req.route) return;
+    const endpoint = `/api/v1${req.route.path}`;
     db.prepare(
       `INSERT INTO endpoint_stats (method, endpoint, requests) VALUES (?, ?, 1)
        ON CONFLICT (method, endpoint) DO UPDATE SET requests = requests + 1`

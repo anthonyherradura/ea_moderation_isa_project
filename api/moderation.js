@@ -7,7 +7,8 @@ import { MSG } from './messages.js';
 import { requireAuth, isModerator, validate } from './auth.js';
 
 export const moderationRouter = Router();
-moderationRouter.use(requireAuth);
+// Only on this router's own paths, so unknown /api/v1/* paths still get a 404.
+moderationRouter.use(['/messages', '/usernames', '/reviews'], requireAuth);
 
 const mask = (text) => text.replace(/\S/g, '*');
 

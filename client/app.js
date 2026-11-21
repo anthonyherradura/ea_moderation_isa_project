@@ -66,6 +66,8 @@ function showLoggedIn(user) {
   $('admin').hidden = user.role !== 'admin';
   $('chatLog').replaceChildren();
   $('nameResult').textContent = '';
+  $('nameText').value = '';
+  $('chatText').value = '';
   loadReviews();
   if (user.role === 'admin') loadStats();
 }
