@@ -50,15 +50,16 @@ const profile = (u) => ({
   freeCalls: config.freeCalls,
 });
 
-const credentials = [
-  body('email').isEmail().isLength({ max: 254 }).normalizeEmail(),
-  body('password').isString().isLength({ min: 8, max: 72 }),
-  validate,
-];
+const email = body('email').isEmail().isLength({ max: 254 }).normalizeEmail();
+
+// New accounts need an 8+ character password. Login only checks that one was
+// sent: the instructor's seeded demo accounts use short test passwords.
+const newCredentials = [email, body('password').isString().isLength({ min: 8, max: 72 }), validate];
+const loginCredentials = [email, body('password').isString().isLength({ min: 1, max: 72 }), validate];
 
 export const authRouter = Router();
 
-authRouter.post('/auth/register', credentials, async (req, res) => {
+authRouter.post('/auth/register', newCredentials, async (req, res) => {
   const { email, password } = req.body;
   // Only email and password are taken from the body; role is always 'user'.
   try {
@@ -73,7 +74,7 @@ authRouter.post('/auth/register', credentials, async (req, res) => {
   }
 });
 
-authRouter.post('/auth/login', credentials, async (req, res) => {
+authRouter.post('/auth/login', loginCredentials, async (req, res) => {
   const { email, password } = req.body;
   const user = await one('SELECT * FROM users WHERE email = ?', [email]);
   if (!user || !(await bcrypt.compare(password, user.password_hash))) {

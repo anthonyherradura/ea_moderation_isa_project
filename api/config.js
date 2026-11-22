@@ -39,5 +39,6 @@ export const config = {
   seeds: [
     { email: env.SEED_ADMIN_EMAIL, password: env.SEED_ADMIN_PASSWORD, role: 'admin' },
     { email: env.SEED_MODERATOR_EMAIL, password: env.SEED_MODERATOR_PASSWORD, role: 'moderator' },
+    { email: env.SEED_USER_EMAIL, password: env.SEED_USER_PASSWORD, role: 'user' },
   ],
 };

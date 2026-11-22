@@ -120,6 +120,7 @@ INFERENCE_URL=http://${{inference.RAILWAY_PRIVATE_DOMAIN}}:8000
 CLIENT_ORIGINS=https://<client domain>
 SEED_ADMIN_EMAIL=...       SEED_ADMIN_PASSWORD=...
 SEED_MODERATOR_EMAIL=...   SEED_MODERATOR_PASSWORD=...
+SEED_USER_EMAIL=...        SEED_USER_PASSWORD=...      (optional demo player)
 ```
 
 In production the API reads nothing from `.env` / `.env.example`, so a missing
