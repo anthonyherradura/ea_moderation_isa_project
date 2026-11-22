@@ -7,15 +7,23 @@ demo); otherwise the model is downloaded from Hugging Face on first start.
 """
 import os
 
+import torch
 from fastapi import FastAPI
 from pydantic import BaseModel, Field
 from transformers import pipeline
 
 MODEL = os.environ.get("MODEL_DIR", "unitary/toxic-bert")
 
+# In a container PyTorch sees every core of the host, not the CPU share the
+# container is allowed, and starts that many threads. They then fight over the
+# share and each request takes seconds. One short chat message needs only a
+# couple of threads.
+torch.set_num_threads(int(os.environ.get("TORCH_THREADS", "2")))
+
 # Loaded once at startup, not per request. toxic-bert is multi-label, so each
 # label gets its own sigmoid score (they do not sum to 1).
 classifier = pipeline("text-classification", model=MODEL, top_k=None, function_to_apply="sigmoid")
+classifier(["warm-up"])  # the first call is slow; do it before taking traffic
 
 app = FastAPI(title="toxic-bert inference")
 

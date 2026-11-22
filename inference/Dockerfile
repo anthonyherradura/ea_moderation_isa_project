@@ -17,5 +17,7 @@ RUN python -c "from huggingface_hub import snapshot_download; snapshot_download(
 COPY app.py .
 
 ENV MODEL_DIR=/app/model HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1
+# Few threads: the container's CPU share is far smaller than the host's core count.
+ENV TORCH_THREADS=2 OMP_NUM_THREADS=2 MKL_NUM_THREADS=2
 # "::" listens on IPv4 and IPv6 (Railway's private network uses IPv6).
 CMD ["sh", "-c", "uvicorn app:app --host :: --port ${PORT:-8000}"]
