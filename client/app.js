@@ -86,6 +86,8 @@ $('authForm').addEventListener('submit', async (event) => {
 
 $('register').addEventListener('click', async () => {
   if (!$('authForm').reportValidity()) return;
+  // Only new accounts need 8+ characters; existing (seeded demo) accounts may be shorter.
+  if ($('password').value.length < 8) return setStatus(STR.passwordTooShort, true);
   if (await api('POST', '/auth/register', credentials())) setStatus(STR.registered);
 });
 
