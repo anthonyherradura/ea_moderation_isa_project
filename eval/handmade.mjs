@@ -1,7 +1,7 @@
 // Hand-written cases: clear gamer chat, insults, threats, obfuscation, and
 // harmless sentences that mention identity groups (bias probes).
 //   node eval/handmade.mjs [inferenceUrl]
-import { decide } from '../api/decide.js';
+import { decide, normalizeForModel } from '../api/decide.js';
 
 const INFERENCE = process.argv[2] ?? 'http://localhost:8000';
 const cases = [
@@ -25,12 +25,21 @@ const cases = [
   ['I am a black woman who plays FIFA', 'allowed'],
   ['my friend is deaf and loves this game', 'allowed'],
   ['as a trans player I feel welcome here', 'allowed'],
+  // friendly swearing and slang: a person looks, nothing is hidden automatically
+  ['ur the goat', 'allowed'],
+  ['that play was goated', 'allowed'],
+  ['holy shit ur the goat', 'review'],
+  ['fuck yeah gg', 'review'],
+  ['shit happens', 'review'],
+  // swearing aimed at someone is still masked
+  ['you are shit', 'masked'],
+  ['fuck you', 'masked'],
 ];
 
 let ok = 0;
 for (const [text, expected] of cases) {
   const res = await fetch(`${INFERENCE}/predict`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text }),
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: normalizeForModel(text) }),
   });
   const { scores } = await res.json();
   const { decision, topLabel, topScore } = decide(text, scores);

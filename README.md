@@ -73,14 +73,18 @@ the review queue with a warning (5 s timeout, one retry, circuit breaker).
 [api/decide.js](api/decide.js) turns the model's six scores into a decision.
 The thresholds belong to the API, not the model:
 
-- **masked** if a serious label is high: threat ≥ 0.7, severe_toxic ≥ 0.5,
-  identity_hate ≥ 0.5 or obscene ≥ 0.9, or the message is a known abbreviation
-  the model misses (`kys`, also spelled `k y s`). Masked cases can be appealed.
+- **masked** if a serious label is high (threat ≥ 0.7, severe_toxic ≥ 0.5,
+  identity_hate ≥ 0.5), if swearing is aimed at someone (obscene and insult
+  both ≥ 0.9), or if the message is a known abbreviation the model misses
+  (`kys`, also spelled `k y s`). Masked cases can be appealed.
 - **review** (human moderator) if the highest score is ≥ `REVIEW_THRESHOLD` (0.5).
 - **allowed** otherwise.
 
-toxic-bert's general `toxic` label is high for any rudeness ("shut up" scores
-0.95), so on its own it only sends a message to review.
+toxic-bert's general `toxic` label is high for any rudeness or swearing
+("shut up" 0.95, "holy shit" 0.98), so on its own it only sends a message to
+review. Before scoring, a little gamer slang is rewritten for the model only
+("goat" → "greatest of all time"; the model reads "ur the goat" as an insult);
+the message is stored and shown as typed.
 
 ## Evaluation
 

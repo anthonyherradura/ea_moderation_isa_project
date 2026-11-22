@@ -12,19 +12,25 @@ Labels: E = explicit toxicity, I = implicit toxicity, A = game action, O = other
 | Rule | E flagged (recall) | Precision | F1 | O+A wrongly masked | O+A sent to review |
 | --- | --- | --- | --- | --- | --- |
 | Old: highest score, review 0.5 / mask 0.9 | 76.4% | 70.5% | 0.734 | 1.3% | 2.5% |
-| New: `api/decide.js` | 76.4% | 70.3% | 0.732 | **0.6%** | 3.3% |
+| Per-label masking (first deploy) | 76.4% | 70.3% | 0.732 | 0.6% | 3.3% |
+| Current `api/decide.js`: obscene masks only with insult ≥ 0.9 | 76.4% | 70.3% | 0.732 | **0.2%** | 3.7% |
 
-The new rule catches the same toxic messages but halves wrongly masked normal
-chat: borderline insults go to a human instead of being hidden automatically.
+Every version catches the same toxic messages; each step hides less normal chat
+automatically and sends more borderline messages to a human instead. The
+current rule auto-masks 17% of explicit toxicity and sends 59% to review.
 
-| Label | n | Allowed | Review | Masked (new rule) |
+Why the second change: friendly swearing was masked ("holy shit" obscene 0.95,
+"fuck yeah gg" 0.99). Now swearing is masked only when it is aimed at someone
+("fuck you": obscene 0.99, insult 0.95).
+
+| Label | n | Allowed | Review | Masked (current rule) |
 | --- | --- | --- | --- | --- |
-| E | 670 | 23.6% | 33.3% | 43.1% |
-| I | 402 | 95.0% | 4.2% | 0.7% |
-| A | 366 | 96.4% | 2.7% | 0.8% |
-| O | 5194 | 96.1% | 3.3% | 0.6% |
+| E | 670 | 23.6% | 59.3% | 17.2% |
+| I | 402 | 95.0% | 4.5% | 0.5% |
+| A | 366 | 96.4% | 3.6% | 0.0% |
+| O | 5194 | 96.1% | 3.7% | 0.3% |
 
-Usernames (unlabelled): 95.2% allowed, 3.3% review, 1.5% masked. Masked names
+Usernames (unlabelled): 95.2% allowed, 4.3% review, 0.6% masked. Masked names
 are clear profanity ("Fuck Some bitches.(ONLYMID)"); review catches milder ones
 ("Im with this stupid", "Piss On Your Grave").
 
@@ -39,7 +45,10 @@ fuck off too"), so part of the "wrongly masked" figure is the dataset, not the m
 
 ## Hand-written cases (`eval/handmade.mjs`)
 
-20/20 as expected with the new rule (14/20 with the old one). The old rule
+27/27 as expected with the current rule (14/20 of the original 20 with the old
+one). Added cases: friendly slang and swearing ("ur the goat" allowed, "holy
+shit ur the goat" review, "fuck yeah gg" review) and directed swearing ("fuck
+you" masked). The old rule
 masked mild insults ("shut up" toxic 0.95) and allowed "kys" (0.01), which the
 model does not understand; `decide.js` handles it with a small abbreviation list.
 

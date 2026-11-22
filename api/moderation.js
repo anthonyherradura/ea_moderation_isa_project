@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { body, param } from 'express-validator';
 import { config } from './config.js';
 import { all, one, run } from './db.js';
-import { decide } from './decide.js';
+import { decide, normalizeForModel } from './decide.js';
 import { predict } from './inference.js';
 import { MSG } from './messages.js';
 import { requireAuth, isModerator, validate } from './auth.js';
@@ -25,7 +25,7 @@ async function moderate(user, kind, text) {
   let decision;
   let aiDecision;
   try {
-    scores = await predict(text);
+    scores = await predict(normalizeForModel(text));
     ({ decision, topLabel, topScore } = decide(text, scores, config.reviewThreshold));
     aiDecision = decision;
   } catch (err) {
