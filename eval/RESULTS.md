@@ -45,10 +45,11 @@ fuck off too"), so part of the "wrongly masked" figure is the dataset, not the m
 
 ## Hand-written cases (`eval/handmade.mjs`)
 
-27/27 as expected with the current rule (14/20 of the original 20 with the old
+31/31 as expected with the current rule (14/20 of the original 20 with the old
 one). Added cases: friendly slang and swearing ("ur the goat" allowed, "holy
 shit ur the goat" review, "fuck yeah gg" review) and directed swearing ("fuck
-you" masked). The old rule
+you" masked), and self-harm euphemisms ("actually uninstall irl", "go unalive
+yourself", "kill urself" masked; "uninstall the game" allowed). The old rule
 masked mild insults ("shut up" toxic 0.95) and allowed "kys" (0.01), which the
 model does not understand; `decide.js` handles it with a small abbreviation list.
 

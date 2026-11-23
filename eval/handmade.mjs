@@ -31,6 +31,11 @@ const cases = [
   ['holy shit ur the goat', 'review'],
   ['fuck yeah gg', 'review'],
   ['shit happens', 'review'],
+  // self-harm euphemisms
+  ['actually uninstall irl', 'masked'],
+  ['go unalive yourself', 'masked'],
+  ['kill urself', 'masked'],
+  ['uninstall the game', 'allowed'],
   // swearing aimed at someone is still masked
   ['you are shit', 'masked'],
   ['fuck you', 'masked'],

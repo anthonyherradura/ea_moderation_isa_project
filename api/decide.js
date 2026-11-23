@@ -15,9 +15,15 @@ const MASK_ABUSE = { obscene: 0.9, insult: 0.9 }; // both must be reached
 // the player's message is stored and shown as typed. "ur the goat" scores
 // toxic 0.72 (the model reads "goat" as calling someone an animal); "ur the
 // greatest of all time" scores 0.01.
+// Self-harm euphemisms the model reads as harmless ("uninstall irl" 0.01,
+// "go unalive yourself" 0.10) become the plain words it understands
+// ("actually kill yourself" scores threat 0.78). "uninstall the game" is untouched.
 const SLANG = [
   [/\bgoated\b/gi, 'the greatest'],
   [/\bgoat\b/gi, 'greatest of all time'],
+  [/\b(?:ur\s*self|urself)\b/gi, 'yourself'],
+  [/\buninstall\s+(?:irl|in\s+real\s+life|life|yourself)\b/gi, 'kill yourself'],
+  [/\bunalive\s+yourself\b/gi, 'kill yourself'],
 ];
 
 /** The text to send to the model. */
