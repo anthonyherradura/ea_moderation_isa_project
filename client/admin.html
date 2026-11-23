@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title></title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body data-page="admin">
+  <header>
+    <h1 id="title"></h1>
+    <nav id="navigation">
+      <a id="playerNav" href="player.html"></a>
+      <a id="adminNav" href="admin.html" aria-current="page"></a>
+    </nav>
+    <div id="session" hidden>
+      <span id="who"></span>
+      <span id="usage"></span>
+      <button id="logout"></button>
+    </div>
+  </header>
+
+  <p id="status" role="status"></p>
+
+  <main>
+    <section id="app" hidden>
+      <div class="row spread">
+        <h2 id="adminTitle"></h2>
+        <button id="adminRefresh" class="secondary"></button>
+      </div>
+      <div class="tables">
+        <table id="endpointTable"></table>
+        <table id="userTable"></table>
+      </div>
+    </section>
+  </main>
+
+  <script src="config.js"></script>
+  <script src="messages.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

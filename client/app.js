@@ -1,8 +1,8 @@
 // Plain JS client. Every piece of server or user text is rendered with
 // textContent (never innerHTML), so stored chat text cannot inject markup.
-// API comes from config.js, which serve.js generates from the API_URL variable.
 
 const $ = (id) => document.getElementById(id);
+const page = document.body.dataset.page;
 let me = null;
 
 function el(tag, text, className) {
@@ -13,6 +13,7 @@ function el(tag, text, className) {
 }
 
 function setStatus(text, isError = false) {
+  if (!$('status')) return;
   $('status').textContent = text;
   $('status').className = isError ? 'error' : '';
 }
@@ -41,60 +42,85 @@ async function api(method, path, body) {
   }
 }
 
-// ---- Session ---------------------------------------------------------------
+// ---- Session and role routing ----------------------------------------------
 
 function showLoggedOut() {
   me = null;
-  $('auth').hidden = false;
-  $('app').hidden = true;
-  $('session').hidden = true;
+  if (page !== 'login') location.replace('index.html');
+  if ($('auth')) $('auth').hidden = false;
+  if ($('app')) $('app').hidden = true;
+  if ($('session')) $('session').hidden = true;
 }
 
 function showUsage(used, free) {
+  if (!$('usage')) return;
   $('usage').textContent = STR.usage(used, free);
   $('usage').className = used > free ? 'error' : '';
 }
 
 function showLoggedIn(user) {
   me = user;
-  $('auth').hidden = true;
-  $('app').hidden = false;
-  $('session').hidden = false;
-  $('who').textContent = `${user.email} (${user.role})`;
+
+  if (page === 'login') {
+    location.replace(user.role === 'admin' ? 'admin.html' : 'player.html');
+    return;
+  }
+
+  if (page === 'admin' && user.role !== 'admin') {
+    location.replace('player.html');
+    return;
+  }
+
+  if ($('auth')) $('auth').hidden = true;
+  if ($('app')) $('app').hidden = false;
+  if ($('session')) $('session').hidden = false;
+  if ($('who')) $('who').textContent = `${user.email} (${user.role})`;
   showUsage(user.apiCalls, user.freeCalls);
-  $('reviewTitle').textContent = isModerator() ? STR.reviewTitleAll : STR.reviewTitleMine;
-  $('admin').hidden = user.role !== 'admin';
-  $('chatLog').replaceChildren();
-  $('nameResult').textContent = '';
-  $('nameText').value = '';
-  $('chatText').value = '';
-  loadReviews();
-  if (user.role === 'admin') loadStats();
+
+  if ($('adminNav')) $('adminNav').hidden = user.role !== 'admin';
+  if ($('chatLog')) $('chatLog').replaceChildren();
+  if ($('nameResult')) $('nameResult').textContent = '';
+  if ($('nameText')) $('nameText').value = '';
+  if ($('chatText')) $('chatText').value = '';
+
+  if (page === 'player') {
+    if ($('reviewTitle')) {
+      $('reviewTitle').textContent = isModerator() ? STR.reviewTitleAll : STR.reviewTitleMine;
+    }
+    loadReviews();
+  } else if (page === 'admin') {
+    loadStats();
+  }
 }
 
-const isModerator = () => me.role === 'moderator' || me.role === 'admin';
+const isModerator = () => me && (me.role === 'moderator' || me.role === 'admin');
 const credentials = () => ({ email: $('email').value, password: $('password').value });
 
-$('authForm').addEventListener('submit', async (event) => {
-  event.preventDefault();
-  const user = await api('POST', '/auth/login', credentials());
-  if (user) {
-    $('password').value = '';
-    showLoggedIn(user);
-  }
-});
+if ($('authForm')) {
+  $('authForm').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const user = await api('POST', '/auth/login', credentials());
+    if (user) {
+      $('password').value = '';
+      showLoggedIn(user);
+    }
+  });
+}
 
-$('register').addEventListener('click', async () => {
-  if (!$('authForm').reportValidity()) return;
-  // Only new accounts need 8+ characters; existing (seeded demo) accounts may be shorter.
-  if ($('password').value.length < 8) return setStatus(STR.passwordTooShort, true);
-  if (await api('POST', '/auth/register', credentials())) setStatus(STR.registered);
-});
+if ($('register')) {
+  $('register').addEventListener('click', async () => {
+    if (!$('authForm').reportValidity()) return;
+    if ($('password').value.length < 8) return setStatus(STR.passwordTooShort, true);
+    if (await api('POST', '/auth/register', credentials())) setStatus(STR.registered);
+  });
+}
 
-$('logout').addEventListener('click', async () => {
-  await api('POST', '/auth/logout');
-  showLoggedOut();
-});
+if ($('logout')) {
+  $('logout').addEventListener('click', async () => {
+    await api('POST', '/auth/logout');
+    showLoggedOut();
+  });
+}
 
 // ---- Scoring ---------------------------------------------------------------
 
@@ -104,27 +130,31 @@ function scoreSummary(result) {
   return parts.concat(result.warnings).join(' · ');
 }
 
-$('chatForm').addEventListener('submit', async (event) => {
-  event.preventDefault();
-  const result = await api('POST', '/messages/score', { text: $('chatText').value });
-  if (!result) return;
-  $('chatText').value = '';
-  const item = el('li', null, result.decision);
-  item.append(el('span', result.displayText), el('small', scoreSummary(result)));
-  $('chatLog').prepend(item);
-  showUsage(result.usage.apiCalls, result.usage.freeCalls);
-  if (result.caseId) loadReviews();
-});
+if ($('chatForm')) {
+  $('chatForm').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const result = await api('POST', '/messages/score', { text: $('chatText').value });
+    if (!result) return;
+    $('chatText').value = '';
+    const item = el('li', null, result.decision);
+    item.append(el('span', result.displayText), el('small', scoreSummary(result)));
+    $('chatLog').prepend(item);
+    showUsage(result.usage.apiCalls, result.usage.freeCalls);
+    if (result.caseId) loadReviews();
+  });
+}
 
-$('nameForm').addEventListener('submit', async (event) => {
-  event.preventDefault();
-  const result = await api('POST', '/usernames/check', { username: $('nameText').value });
-  if (!result) return;
-  $('nameResult').textContent = `${result.acceptable ? STR.nameOk : STR.nameNotOk} (${scoreSummary(result)})`;
-  $('nameResult').className = result.decision;
-  showUsage(result.usage.apiCalls, result.usage.freeCalls);
-  if (result.caseId) loadReviews();
-});
+if ($('nameForm')) {
+  $('nameForm').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const result = await api('POST', '/usernames/check', { username: $('nameText').value });
+    if (!result) return;
+    $('nameResult').textContent = `${result.acceptable ? STR.nameOk : STR.nameNotOk} (${scoreSummary(result)})`;
+    $('nameResult').className = result.decision;
+    showUsage(result.usage.apiCalls, result.usage.freeCalls);
+    if (result.caseId) loadReviews();
+  });
+}
 
 // ---- Review cases ----------------------------------------------------------
 
@@ -170,6 +200,7 @@ function renderCase(c) {
 }
 
 async function loadReviews() {
+  if (!$('reviews')) return;
   const cases = await api('GET', '/reviews');
   if (!cases) return;
   $('reviews').replaceChildren(...(cases.length ? cases.map(renderCase) : [el('p', STR.noCases, 'muted')]));
@@ -178,6 +209,7 @@ async function loadReviews() {
 // ---- Admin -----------------------------------------------------------------
 
 function fillTable(table, headers, rows) {
+  if (!table) return;
   const head = el('tr');
   head.append(...headers.map((h) => el('th', h)));
   table.replaceChildren(head, ...rows.map((cells) => {
@@ -188,6 +220,7 @@ function fillTable(table, headers, rows) {
 }
 
 async function loadStats() {
+  if (!$('endpointTable')) return;
   const stats = await api('GET', '/admin/stats');
   if (!stats) return;
   fillTable($('endpointTable'), STR.endpointHeaders, stats.endpoints.map((e) => [e.method, e.endpoint, e.requests]));
@@ -196,19 +229,28 @@ async function loadStats() {
 
 // ---- Start -----------------------------------------------------------------
 
+const pageTitles = {
+  login: STR.loginPageTitle,
+  player: STR.playerPageTitle,
+  admin: STR.adminPageTitle,
+};
+document.title = pageTitles[page];
+
 for (const [id, text] of Object.entries({
   title: STR.title, authTitle: STR.authTitle, emailLabel: STR.email, passwordLabel: STR.password,
   login: STR.login, register: STR.register, logout: STR.logout, privacy: STR.privacy,
   chatTitle: STR.chatTitle, chatSend: STR.send, nameTitle: STR.nameTitle, nameSend: STR.check,
   reviewRefresh: STR.refresh, adminTitle: STR.adminTitle, adminRefresh: STR.refresh,
-})) $(id).textContent = text;
-$('chatText').placeholder = STR.chatPlaceholder;
-$('nameText').placeholder = STR.namePlaceholder;
-$('reviewRefresh').onclick = loadReviews;
-$('adminRefresh').onclick = loadStats;
+  playerTitle: STR.playerTitle, playerNav: STR.playerNav, adminNav: STR.adminNav,
+})) if ($(id)) $(id).textContent = text;
+
+if ($('chatText')) $('chatText').placeholder = STR.chatPlaceholder;
+if ($('nameText')) $('nameText').placeholder = STR.namePlaceholder;
+if ($('reviewRefresh')) $('reviewRefresh').onclick = loadReviews;
+if ($('adminRefresh')) $('adminRefresh').onclick = loadStats;
 
 // Restore the session if the cookie is still valid.
 fetch(`${API}/users/me`, { credentials: 'include' })
   .then((res) => (res.ok ? res.json() : null))
-  .then((user) => user && showLoggedIn(user))
+  .then((user) => user ? showLoggedIn(user) : showLoggedOut())
   .catch(() => setStatus(STR.networkError, true));

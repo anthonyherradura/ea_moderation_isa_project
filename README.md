@@ -139,6 +139,9 @@ Face offline mode, so the running service depends only on the files on its disk.
   and query helpers), `messages.js` (user-facing strings)
 - `inference/` – `app.py` (FastAPI + toxic-bert), `Dockerfile`, and `mock.js`
 - `client/` – static client and its tiny server (`/config.js` comes from `API_URL`)
+  - `index.html` – login and registration
+  - `player.html` – player chat, username checks, and review cases
+  - `admin.html` – admin-only statistics and user management data
 - `eval/` – dataset evaluation scripts
 
 ## Not done yet

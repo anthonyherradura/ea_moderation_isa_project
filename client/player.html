@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title></title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body data-page="player">
+  <header>
+    <h1 id="title"></h1>
+    <nav id="navigation">
+      <a id="playerNav" href="player.html" aria-current="page"></a>
+      <a id="adminNav" href="admin.html" hidden></a>
+    </nav>
+    <div id="session" hidden>
+      <span id="who"></span>
+      <span id="usage"></span>
+      <button id="logout"></button>
+    </div>
+  </header>
+
+  <p id="status" role="status"></p>
+
+  <main>
+    <section id="app" hidden>
+      <h2 id="playerTitle"></h2>
+
+      <section>
+        <h2 id="chatTitle"></h2>
+        <form id="chatForm" class="row">
+          <input id="chatText" maxlength="500" required>
+          <button id="chatSend" type="submit"></button>
+        </form>
+        <ul id="chatLog" class="log"></ul>
+      </section>
+
+      <section>
+        <h2 id="nameTitle"></h2>
+        <form id="nameForm" class="row">
+          <input id="nameText" minlength="3" maxlength="20" required>
+          <button id="nameSend" type="submit"></button>
+        </form>
+        <p id="nameResult"></p>
+      </section>
+
+      <section>
+        <div class="row spread">
+          <h2 id="reviewTitle"></h2>
+          <button id="reviewRefresh" class="secondary"></button>
+        </div>
+        <div id="reviews"></div>
+      </section>
+    </section>
+  </main>
+
+  <script src="config.js"></script>
+  <script src="messages.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
