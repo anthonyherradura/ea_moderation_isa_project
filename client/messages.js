@@ -1,5 +1,8 @@
 // All user-facing strings for the client live here.
 const STR = {
+  loginPageTitle: 'Login - Chat Moderation',
+  playerPageTitle: 'Player Dashboard - Chat Moderation',
+  adminPageTitle: 'Admin Dashboard - Chat Moderation',
   title: 'Player Chat Moderation',
   authTitle: 'Log in or register',
   email: 'Email',
@@ -32,6 +35,9 @@ const STR = {
   appealLabel: 'Appeal: ',
   noteLabel: 'Moderator note: ',
   adminTitle: 'Admin statistics',
+  playerTitle: 'Player dashboard',
+  playerNav: 'Player',
+  adminNav: 'Admin',
   endpointHeaders: ['Method', 'Endpoint', 'Requests'],
   userHeaders: ['User', 'Role', 'API calls'],
   loading: 'Working…',
