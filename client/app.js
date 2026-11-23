@@ -249,6 +249,10 @@ if ($('nameText')) $('nameText').placeholder = STR.namePlaceholder;
 if ($('reviewRefresh')) $('reviewRefresh').onclick = loadReviews;
 if ($('adminRefresh')) $('adminRefresh').onclick = loadStats;
 
+document.querySelectorAll('#navigation a[aria-disabled="true"]').forEach((link) => {
+  link.addEventListener('click', (event) => event.preventDefault());
+});
+
 // Restore the session if the cookie is still valid.
 fetch(`${API}/users/me`, { credentials: 'include' })
   .then((res) => (res.ok ? res.json() : null))
